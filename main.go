@@ -6,13 +6,15 @@ import (
 )
 
 var (
-	Commands     = []string{"new", "train", "run", "signbit", "max"}
+	Commands     = []string{"new", "train", "run", "signbit", "max", "read", "write"}
 	CommandDescs = map[string]string{
 		"new":     "create a new network file",
 		"train":   "train a network on data",
 		"run":     "run new samples through a network",
 		"signbit": "compute the sign bit of vector components",
 		"max":     "get the index of the max vector component",
+		"read":    "read the parameters of a network",
+		"write":   "write the parameters of a network",
 	}
 	CommandFuncs = map[string]func([]string){
 		"new":     NewCmd,
@@ -20,6 +22,8 @@ var (
 		"run":     RunCmd,
 		"signbit": SignBitCmd,
 		"max":     MaxCmd,
+		"read":    ReadCmd,
+		"write":   WriteCmd,
 	}
 )
 
