@@ -42,15 +42,14 @@ func TrainCmd(args []string) {
 
 	flags := flag.NewFlagSet("train", flag.ExitOnError)
 	flags.StringVar(&netFile, "net", "", "neural network file")
-	flags.StringVar(&samplesFile, "samples", "", "training samples file (defaults to stdin)."+
-		" Each line is a space-delimited vector.")
-	flags.StringVar(&adam, "adam", "", "mdam optimizer parameters "+
-		"('default' or 'RATE1,RATE2')")
+	flags.StringVar(&samplesFile, "samples", "", "training samples file (defaults to stdin)")
+	flags.StringVar(&adam, "adam", "", "adam optimizer parameters "+
+		`("default" or "RATE1,RATE2")`)
 	flags.Float64Var(&momentum, "momentum", 0, "SGD momentum")
 	flags.Float64Var(&stepSize, "step", 0.001, "SGD step size")
 	flags.IntVar(&batchSize, "batch", 1, "SGD batch size")
 	flags.StringVar(&costFunc, "cost", "softmax", "cost function "+
-		"('softmax', 'mse', or 'sigmoidce')")
+		`("softmax", "mse", or "sigmoidce")`)
 	flags.DurationVar(&stopTime, "stoptime", 0, "stop after a `timeout`")
 	flags.Float64Var(&stopCost, "stopcost", 0, "stop after cost goes below a `threshold`")
 	flags.IntVar(&stopSamples, "stopsamples", 0, "stop after `n` training samples")
