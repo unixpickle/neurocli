@@ -15,4 +15,4 @@ do
   echo $atomicNum | neurocli run -net $OUT_FILE
 done
 
-rm net_out
+rm $OUT_FILE

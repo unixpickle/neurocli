@@ -1,0 +1,13 @@
+Input(w=1, h=1, d=1)
+
+# LSTM with 16 memory cells.
+#
+# For more on LSTMs, see
+# https://en.wikipedia.org/wiki/Long_short-term_memory.
+LSTM(out=16)
+
+# A single number as output.
+#
+# This is converted to a bit via sigmoidce cost during
+# training and via `neurocli signbit` at runtime.
+FC(out=1)

@@ -1,4 +1,4 @@
-# About this demo
+# About this example
 
 This demo trains a neural network to predict an element's average atomic mass, given its atomic number.
 
