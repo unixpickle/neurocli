@@ -1,0 +1,10 @@
+# Two inputs.
+Input(w=1, h=1, d=2)
+
+# 16 hidden units.
+FC(out=16)
+Tanh
+
+# Three output classes.
+FC(out=3)
+Softmax

@@ -1,3 +1,4 @@
+# One input.
 Input(w=1, h=1, d=1)
 
 # Don't let big atomic numbers saturate the activations.
