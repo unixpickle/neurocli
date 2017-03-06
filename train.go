@@ -19,6 +19,7 @@ import (
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
 	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/rip"
 	"github.com/unixpickle/serializer"
 )
 
@@ -111,17 +112,16 @@ func TrainCmd(args []string) {
 	}
 
 	st := newStopper(stopTime, stopCost, stopSamples)
-	doneChan := make(chan struct{})
+	r := rip.NewRIP()
 	sgd.StatusFunc = func(b anysgd.Batch) {
 		if st.ShouldStop(*lastCost, sgd.NumProcessed) {
-			close(doneChan)
+			r.Close()
 		}
 		if !quiet {
 			log.Printf("processed %d samples: cost=%v", sgd.NumProcessed, *lastCost)
 		}
 	}
-
-	err = sgd.Run(doneChan)
+	err = sgd.Run(r.Chan())
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "training error:", err)
