@@ -1,0 +1,10 @@
+Input(w=1, h=1, d=1)
+
+# Don't let big atomic numbers saturate the activations.
+Linear(scale=0.03)
+
+# Small hidden layer with 16 neurons.
+FC(out=16)
+Tanh
+
+FC(out=1)
