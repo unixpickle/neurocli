@@ -1,6 +1,6 @@
 # About this example
 
-In this example, we are trying to crack a code. The code takes a string of bits (e.g. "1 0 1") and decodes them to another string (e.g. "0 1 1"). We are given a lot of examples of strings and their decodings in [training.txt](training.txt). We want a neural net to learn the code, then use its knowledge to decode the contents of [message.txt](message.txt).
+In this example, we are trying to crack a code. The code takes a string of bits (e.g. "1 0 1") and decodes them to another string (e.g. "0 1 1"). We are given a lot of examples of strings and their decodings in [samples.txt](samples.txt). We want a neural net to learn the code, then use its knowledge to decode the contents of [message.txt](message.txt).
 
 Since the messages can be of varying length, we will use a recurrent neural network to solve this problem. An LSTM with several hidden units will do the job (see [network.txt](network.txt) for details). The network takes in a bit and produces a bit at every time-step.
 
