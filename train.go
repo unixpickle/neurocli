@@ -129,9 +129,9 @@ func TrainCmd(args []string) {
 
 	if !quiet {
 		log.Println("saving network...")
-		if err := serializer.SaveAny(netFile, net); err != nil {
-			essentials.Die("save network failed:", err)
-		}
+	}
+	if err := serializer.SaveAny(netFile, net); err != nil {
+		essentials.Die("save network failed:", err)
 	}
 
 	if err != nil {
