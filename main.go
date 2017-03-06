@@ -6,14 +6,16 @@ import (
 )
 
 var (
-	Commands     = []string{"new", "train"}
+	Commands     = []string{"new", "train", "run"}
 	CommandDescs = map[string]string{
 		"new":   "create a new network file",
 		"train": "train a network on data",
+		"run":   "run new samples through a network",
 	}
 	CommandFuncs = map[string]func([]string){
 		"new":   NewCmd,
 		"train": TrainCmd,
+		"run":   RunCmd,
 	}
 )
 

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -10,6 +11,26 @@ import (
 
 	"github.com/unixpickle/essentials"
 )
+
+// VecStr turns a vector into a string.
+//
+// The vector may be []float64 or []float32.
+func VecStr(vec interface{}) string {
+	var strs []string
+	switch vec := vec.(type) {
+	case []float32:
+		for _, x := range vec {
+			strs = append(strs, fmt.Sprintf("%v", x))
+		}
+	case []float64:
+		for _, x := range vec {
+			strs = append(strs, fmt.Sprintf("%v", x))
+		}
+	default:
+		panic("unsupported type")
+	}
+	return strings.Join(strs, " ")
+}
 
 // A VecReader reads space-delimited newline-separated
 // vectors from an io.Reader.
@@ -101,4 +122,27 @@ func (v *VecReader) ReadSamples(n int) (ins, outs [][]float64, err error) {
 		outs = append(outs, outVec)
 	}
 	return
+}
+
+// InputChan produces a channel of vectors which is closed
+// when reading finishes.
+//
+// If a non-EOF error is encountered, the program is
+// terminated with an error.
+func (v *VecReader) InputChan() <-chan []float64 {
+	res := make(chan []float64, 1)
+	go func() {
+		defer close(res)
+		for {
+			vec, err := v.Read()
+			if err != nil {
+				if ctx, ok := err.(*essentials.CtxError); !ok || ctx.Original != io.EOF {
+					essentials.Die(err)
+				}
+				return
+			}
+			res <- vec
+		}
+	}()
+	return res
 }

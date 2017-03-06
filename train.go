@@ -128,7 +128,7 @@ func TrainCmd(args []string) {
 	}
 
 	if !quiet {
-		log.Println("Saving network...")
+		log.Println("saving network...")
 		if err := serializer.SaveAny(netFile, net); err != nil {
 			essentials.Die("save network failed:", err)
 		}
@@ -259,14 +259,14 @@ func (s *s2sFetcher) splitSample(in, out []float64) ([]anyvec.Vector, []anyvec.V
 		return nil, nil, fmt.Errorf("fetch sample: output not divisible by %d", steps)
 	}
 	outSize := len(out) / steps
-	return s.splitSeq(in, s.inSize), s.splitSeq(out, outSize), nil
+	return splitSeq(s.cr, in, s.inSize), splitSeq(s.cr, out, outSize), nil
 }
 
-func (s *s2sFetcher) splitSeq(seq []float64, chunkSize int) []anyvec.Vector {
+func splitSeq(c anyvec.Creator, seq []float64, chunkSize int) []anyvec.Vector {
 	var outSeq []anyvec.Vector
 	for i := 0; i < len(seq); i += chunkSize {
 		v := seq[i : i+chunkSize]
-		outSeq = append(outSeq, s.cr.MakeVectorData(s.cr.MakeNumericList(v)))
+		outSeq = append(outSeq, c.MakeVectorData(c.MakeNumericList(v)))
 	}
 	return outSeq
 }
