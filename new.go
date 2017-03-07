@@ -53,26 +53,27 @@ func networkFromBlock(b convmarkup.Block) *Network {
 		essentials.Die("no blocks in markup file")
 	}
 
-	var inputCount int
-	d := root.Children[0].OutDims()
-	inputCount = d.Depth * d.Width * d.Height
+	inputCount := totalComponents(root.Children[0].OutDims())
+	outputCount := totalComponents(root.OutDims())
 
 	c := anyvec32.CurrentCreator()
 	conv, err := anyconv.FromMarkupBlock(c, b, convmarkup.Dims{})
 	if err == nil {
 		return &Network{
-			InVecSize: inputCount,
-			Net:       conv,
+			InVecSize:  inputCount,
+			OutVecSize: outputCount,
+			Net:        conv,
 		}
 	}
 
-	rnn, err := blockToRNN(b, &d)
+	rnn, err := blockToRNN(b, &convmarkup.Dims{})
 	if err != nil {
 		essentials.Die(err)
 	}
 	return &Network{
-		InVecSize: inputCount,
-		Net:       rnn,
+		InVecSize:  inputCount,
+		OutVecSize: outputCount,
+		Net:        rnn,
 	}
 }
 
@@ -80,6 +81,10 @@ func markupCreators() map[string]convmarkup.Creator {
 	res := convmarkup.DefaultCreators()
 	res["LSTM"] = createMarkupLSTM
 	return res
+}
+
+func totalComponents(dims convmarkup.Dims) int {
+	return dims.Width * dims.Height * dims.Depth
 }
 
 func blockToRNN(b convmarkup.Block, dim *convmarkup.Dims) (anyrnn.Block, error) {

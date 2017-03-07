@@ -85,7 +85,8 @@ func TrainCmd(args []string) {
 		}
 		lastCost = &tr.LastCost
 		gradienter = tr
-		fetcher = &ffFetcher{vr: reader, cr: creator, inSize: net.InVecSize}
+		fetcher = &ffFetcher{vr: reader, cr: creator, inSize: net.InVecSize,
+			outSize: net.OutVecSize}
 	} else {
 		tr := &anys2s.Trainer{
 			Func: func(s anyseq.Seq) anyseq.Seq {
@@ -98,7 +99,8 @@ func TrainCmd(args []string) {
 		}
 		lastCost = &tr.LastCost
 		gradienter = tr
-		fetcher = &s2sFetcher{vr: reader, cr: creator, inSize: net.InVecSize}
+		fetcher = &s2sFetcher{vr: reader, cr: creator, inSize: net.InVecSize,
+			outSize: net.OutVecSize}
 	}
 
 	sgd := &anysgd.SGD{
@@ -202,12 +204,14 @@ func (s *stopper) ShouldStop(cost anyvec.Numeric, samples int) bool {
 }
 
 type ffFetcher struct {
-	vr     *VecReader
-	cr     anyvec.Creator
-	inSize int
+	vr      *VecReader
+	cr      anyvec.Creator
+	inSize  int
+	outSize int
 }
 
-func (f *ffFetcher) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
+func (f *ffFetcher) Fetch(s anysgd.SampleList) (batch anysgd.Batch, err error) {
+	defer essentials.AddCtxTo("fetch samples", &err)
 	ins, outs, err := f.vr.ReadSamples(s.Len())
 	if err != nil && len(ins) == 0 {
 		return nil, err
@@ -217,6 +221,10 @@ func (f *ffFetcher) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 		if len(x) != f.inSize {
 			return nil, fmt.Errorf("input size should be %d but got %d",
 				f.inSize, len(x))
+		}
+		if len(outs[i]) != f.outSize {
+			return nil, fmt.Errorf("output size should be %d but got %d",
+				f.outSize, len(outs[i]))
 		}
 		joinedIn = append(joinedIn, x...)
 		joinedOut = append(joinedOut, outs[i]...)
@@ -229,12 +237,14 @@ func (f *ffFetcher) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 }
 
 type s2sFetcher struct {
-	vr     *VecReader
-	cr     anyvec.Creator
-	inSize int
+	vr      *VecReader
+	cr      anyvec.Creator
+	inSize  int
+	outSize int
 }
 
-func (s *s2sFetcher) Fetch(samples anysgd.SampleList) (anysgd.Batch, error) {
+func (s *s2sFetcher) Fetch(samples anysgd.SampleList) (batch anysgd.Batch, err error) {
+	defer essentials.AddCtxTo("fetch samples", &err)
 	ins, outs, err := s.vr.ReadSamples(samples.Len())
 	if err != nil && len(ins) == 0 {
 		return nil, err
@@ -256,14 +266,15 @@ func (s *s2sFetcher) Fetch(samples anysgd.SampleList) (anysgd.Batch, error) {
 
 func (s *s2sFetcher) splitSample(in, out []float64) ([]anyvec.Vector, []anyvec.Vector, error) {
 	if len(in)%s.inSize != 0 {
-		return nil, nil, fmt.Errorf("fetch sample: input not divisible by %d", s.inSize)
+		return nil, nil, fmt.Errorf("input not divisible by %d", s.inSize)
 	}
-	steps := len(in) / s.inSize
-	if len(out)%steps != 0 {
-		return nil, nil, fmt.Errorf("fetch sample: output not divisible by %d", steps)
+	if len(out)%s.outSize != 0 {
+		return nil, nil, fmt.Errorf("output not divisible by %d", s.outSize)
 	}
-	outSize := len(out) / steps
-	return splitSeq(s.cr, in, s.inSize), splitSeq(s.cr, out, outSize), nil
+	if len(out)/s.outSize != len(in)/s.inSize {
+		return nil, nil, fmt.Errorf("sequence length mismatch")
+	}
+	return splitSeq(s.cr, in, s.inSize), splitSeq(s.cr, out, s.outSize), nil
 }
 
 func splitSeq(c anyvec.Creator, seq []float64, chunkSize int) []anyvec.Vector {

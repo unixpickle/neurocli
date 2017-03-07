@@ -11,14 +11,17 @@ func init() {
 
 // A Network contains a network and its metadata.
 type Network struct {
-	InVecSize int
-	Net       interface{}
+	InVecSize  int
+	OutVecSize int
+
+	Net interface{}
 }
 
 // DeserializeNetwork deserializes a Network.
 func DeserializeNetwork(d []byte) (*Network, error) {
 	var res Network
-	if err := serializer.DeserializeAny(d, &res.InVecSize, &res.Net); err != nil {
+	err := serializer.DeserializeAny(d, &res.InVecSize, &res.OutVecSize, &res.Net)
+	if err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -39,5 +42,5 @@ func (n *Network) SerializerType() string {
 
 // Serialize serializes the Network.
 func (n *Network) Serialize() ([]byte, error) {
-	return serializer.SerializeAny(n.InVecSize, n.Net)
+	return serializer.SerializeAny(n.InVecSize, n.OutVecSize, n.Net)
 }
