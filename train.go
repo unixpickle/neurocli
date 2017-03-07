@@ -85,7 +85,7 @@ func TrainCmd(args []string) {
 		}
 		lastCost = &tr.LastCost
 		gradienter = tr
-		fetcher = &ffFetcher{vr: reader, cr: creator}
+		fetcher = &ffFetcher{vr: reader, cr: creator, inSize: net.InVecSize}
 	} else {
 		tr := &anys2s.Trainer{
 			Func: func(s anyseq.Seq) anyseq.Seq {
@@ -202,8 +202,9 @@ func (s *stopper) ShouldStop(cost anyvec.Numeric, samples int) bool {
 }
 
 type ffFetcher struct {
-	vr *VecReader
-	cr anyvec.Creator
+	vr     *VecReader
+	cr     anyvec.Creator
+	inSize int
 }
 
 func (f *ffFetcher) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
@@ -213,6 +214,10 @@ func (f *ffFetcher) Fetch(s anysgd.SampleList) (anysgd.Batch, error) {
 	}
 	var joinedIn, joinedOut []float64
 	for i, x := range ins {
+		if len(x) != f.inSize {
+			return nil, fmt.Errorf("input size should be %d but got %d",
+				f.inSize, len(x))
+		}
 		joinedIn = append(joinedIn, x...)
 		joinedOut = append(joinedOut, outs[i]...)
 	}
