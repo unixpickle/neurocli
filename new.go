@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -39,7 +38,7 @@ func NewCmd(args []string) {
 	if err != nil {
 		essentials.Die(err)
 	}
-	block, err := parsed.Block(convmarkup.Dims{}, markupCreators())
+	block, err := parsed.Block(convmarkup.Dims{}, anyrnn.MarkupCreators())
 	if err != nil {
 		essentials.Die(err)
 	}
@@ -56,8 +55,8 @@ func networkFromBlock(b convmarkup.Block) *Network {
 		essentials.Die("no blocks in markup file")
 	}
 
-	inputCount := totalComponents(root.Children[0].OutDims())
-	outputCount := totalComponents(root.OutDims())
+	inputCount := root.Children[0].OutDims().Volume()
+	outputCount := root.OutDims().Volume()
 
 	c := anyvec32.CurrentCreator()
 	conv, err := convFromMarkup(c, convmarkup.Dims{}, b)
@@ -68,8 +67,7 @@ func networkFromBlock(b convmarkup.Block) *Network {
 			Net:        conv,
 		}
 	}
-
-	rnn, err := blockToRNN(b, &convmarkup.Dims{})
+	rnn, err := rnnFromMarkup(c, b)
 	if err != nil {
 		essentials.Die(err)
 	}
@@ -78,91 +76,6 @@ func networkFromBlock(b convmarkup.Block) *Network {
 		OutVecSize: outputCount,
 		Net:        rnn,
 	}
-}
-
-func markupCreators() map[string]convmarkup.Creator {
-	res := convmarkup.DefaultCreators()
-	res["LSTM"] = createMarkupLSTM
-	return res
-}
-
-func totalComponents(dims convmarkup.Dims) int {
-	return dims.Width * dims.Height * dims.Depth
-}
-
-func blockToRNN(b convmarkup.Block, dim *convmarkup.Dims) (anyrnn.Block, error) {
-	defer func() {
-		*dim = b.OutDims()
-	}()
-	switch b := b.(type) {
-	case *convmarkup.Input, *convmarkup.Assert:
-		return nil, nil
-	case *convmarkup.Root:
-		return blocksToRNNStack(b.Children, dim)
-	case *markupLSTM:
-		inSize := (*dim).Width * (*dim).Height * (*dim).Depth
-		return anyrnn.NewLSTM(anyvec32.CurrentCreator(), inSize, b.StateSize), nil
-	case *convmarkup.Repeat:
-		var res anyrnn.Stack
-		for i := 0; i < b.N; i++ {
-			stack, err := blocksToRNNStack(b.Children, dim)
-			if err != nil {
-				return nil, err
-			}
-			res = append(res, stack...)
-		}
-		return res, nil
-	default:
-		layer, err := convFromMarkup(anyvec32.CurrentCreator(), *dim, b)
-		return &anyrnn.LayerBlock{Layer: layer}, err
-	}
-}
-
-func blocksToRNNStack(blocks []convmarkup.Block, dim *convmarkup.Dims) (anyrnn.Stack, error) {
-	var res anyrnn.Stack
-	for _, b := range blocks {
-		rnn, err := blockToRNN(b, dim)
-		if err != nil {
-			return nil, err
-		} else if rnn == nil {
-			continue
-		}
-		if stack, ok := rnn.(anyrnn.Stack); ok {
-			res = append(res, stack...)
-		} else {
-			res = append(res, rnn)
-		}
-	}
-	return res, nil
-}
-
-type markupLSTM struct {
-	StateSize int
-}
-
-func createMarkupLSTM(in convmarkup.Dims, attr map[string]float64,
-	children []convmarkup.Block) (convmarkup.Block, error) {
-	if len(children) != 0 {
-		return nil, errors.New("no children expected")
-	}
-	for x := range attr {
-		if x != "out" {
-			return nil, errors.New("unknown attribute: " + x)
-		}
-	}
-	out := attr["out"]
-	if out <= 0 || float64(int(out)) != out {
-		return nil, errors.New("invalid or missing 'out' attribute")
-	}
-	return &markupLSTM{StateSize: int(out)}, nil
-}
-
-func (m *markupLSTM) Type() string {
-	return "LSTM"
-}
-
-func (m *markupLSTM) OutDims() convmarkup.Dims {
-	return convmarkup.Dims{Width: 1, Height: 1, Depth: m.StateSize}
 }
 
 func convFromMarkup(c anyvec.Creator, inDims convmarkup.Dims,
@@ -178,6 +91,25 @@ func convFromMarkup(c anyvec.Creator, inDims convmarkup.Dims,
 	if layer, ok := instance.(anynet.Layer); ok {
 		return layer, nil
 	} else {
-		return nil, fmt.Errorf("bad markup block type: %T", layer)
+		return nil, fmt.Errorf("not an anynet.Layer: %T", instance)
+	}
+}
+
+func rnnFromMarkup(c anyvec.Creator, b convmarkup.Block) (anyrnn.Block, error) {
+	chain := convmarkup.RealizerChain{
+		convmarkup.MetaRealizer{},
+		anyrnn.Realizer(c, convmarkup.RealizerChain{
+			convmarkup.MetaRealizer{},
+			anyconv.Realizer(c),
+		}),
+	}
+	instance, _, err := chain.Realize(convmarkup.Dims{}, b)
+	if err != nil {
+		return nil, err
+	}
+	if block, ok := instance.(anyrnn.Block); ok {
+		return block, nil
+	} else {
+		return nil, fmt.Errorf("not an anyrnn.Block: %T", instance)
 	}
 }
