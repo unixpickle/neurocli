@@ -171,7 +171,7 @@ func convFromMarkup(c anyvec.Creator, inDims convmarkup.Dims,
 		convmarkup.MetaRealizer{},
 		anyconv.Realizer(anyvec32.CurrentCreator()),
 	}
-	instance, err := chain.Realize(inDims, b)
+	instance, _, err := chain.Realize(inDims, b)
 	if err != nil {
 		return nil, err
 	}
