@@ -3,10 +3,13 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 
+	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anyconv"
 	"github.com/unixpickle/anynet/anyrnn"
+	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
 	"github.com/unixpickle/convmarkup"
 	"github.com/unixpickle/essentials"
@@ -57,7 +60,7 @@ func networkFromBlock(b convmarkup.Block) *Network {
 	outputCount := totalComponents(root.OutDims())
 
 	c := anyvec32.CurrentCreator()
-	conv, err := anyconv.FromMarkupBlock(c, b, convmarkup.Dims{})
+	conv, err := convFromMarkup(c, convmarkup.Dims{}, b)
 	if err == nil {
 		return &Network{
 			InVecSize:  inputCount,
@@ -92,7 +95,7 @@ func blockToRNN(b convmarkup.Block, dim *convmarkup.Dims) (anyrnn.Block, error) 
 		*dim = b.OutDims()
 	}()
 	switch b := b.(type) {
-	case *convmarkup.Input:
+	case *convmarkup.Input, *convmarkup.Assert:
 		return nil, nil
 	case *convmarkup.Root:
 		return blocksToRNNStack(b.Children, dim)
@@ -110,10 +113,7 @@ func blockToRNN(b convmarkup.Block, dim *convmarkup.Dims) (anyrnn.Block, error) 
 		}
 		return res, nil
 	default:
-		layer, err := anyconv.FromMarkupBlock(anyvec32.CurrentCreator(), b, *dim)
-		if err != nil {
-			return nil, err
-		}
+		layer, err := convFromMarkup(anyvec32.CurrentCreator(), *dim, b)
 		return &anyrnn.LayerBlock{Layer: layer}, err
 	}
 }
@@ -163,4 +163,21 @@ func (m *markupLSTM) Type() string {
 
 func (m *markupLSTM) OutDims() convmarkup.Dims {
 	return convmarkup.Dims{Width: 1, Height: 1, Depth: m.StateSize}
+}
+
+func convFromMarkup(c anyvec.Creator, inDims convmarkup.Dims,
+	b convmarkup.Block) (anynet.Layer, error) {
+	chain := convmarkup.RealizerChain{
+		convmarkup.MetaRealizer{},
+		anyconv.Realizer(anyvec32.CurrentCreator()),
+	}
+	instance, err := chain.Realize(inDims, b)
+	if err != nil {
+		return nil, err
+	}
+	if layer, ok := instance.(anynet.Layer); ok {
+		return layer, nil
+	} else {
+		return nil, fmt.Errorf("bad markup block type: %T", layer)
+	}
 }
