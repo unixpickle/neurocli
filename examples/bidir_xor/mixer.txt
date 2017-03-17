@@ -1,0 +1,6 @@
+# Mix the outputs from the forward and backward passes.
+
+Input(w=1, h=1, d=10)
+FC(out=5)
+Tanh
+FC(out=1)

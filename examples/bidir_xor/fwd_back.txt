@@ -1,0 +1,4 @@
+# Forward and backward RNN description.
+
+Input(w=1, h=1, d=1)
+LSTM(out=5)
