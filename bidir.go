@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anydiff/anyseq"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anyrnn"
@@ -97,6 +98,17 @@ func DeserializeBidir(d []byte) (*Bidir, error) {
 // Apply applies the bidirectional RNN to a sequence.
 func (b *Bidir) Apply(in anyseq.Seq) anyseq.Seq {
 	return anyseq.Map(b.In.Apply(in), b.Out.Apply)
+}
+
+// Parameters returns all the parameters.
+func (b *Bidir) Parameters() []*anydiff.Var {
+	var res []*anydiff.Var
+	for _, obj := range []interface{}{b.In, b.Out} {
+		if p, ok := obj.(anynet.Parameterizer); ok {
+			res = append(res, p.Parameters()...)
+		}
+	}
+	return res
 }
 
 // SerializerType returns the unique ID used to serialize

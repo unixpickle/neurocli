@@ -94,7 +94,7 @@ func TrainCmd(args []string) {
 					b := net.Net.(anyrnn.Block)
 					return anyrnn.Map(s, b)
 				} else {
-					return net.Net.(*anyrnn.Bidir).Apply(s)
+					return net.Net.(*Bidir).Apply(s)
 				}
 			},
 			Cost:    trainingCostFunc(costFunc),
