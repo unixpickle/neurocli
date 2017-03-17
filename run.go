@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anydiff/anyseq"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anyrnn"
 	"github.com/unixpickle/anyvec"
@@ -41,8 +42,12 @@ func RunCmd(args []string) {
 	c := anyvec32.CurrentCreator()
 	if net.FeedForward() {
 		runFeedForward(c, net, reader)
-	} else {
+	} else if net.RNN() {
 		runRNN(c, net, reader, persistent)
+	} else if net.Bidir() {
+		runBidir(c, net, reader)
+	} else {
+		essentials.Die("unknown network type")
 	}
 }
 
@@ -85,5 +90,24 @@ func runRNN(c anyvec.Creator, n *Network, r *VecReader, persist bool) {
 		if !persist {
 			state = nil
 		}
+	}
+}
+
+func runBidir(c anyvec.Creator, n *Network, r *VecReader) {
+	bd := n.Net.(*Bidir)
+	for vec := range r.InputChan() {
+		if len(vec)%n.InVecSize != 0 {
+			essentials.Die("bad input: length must be divisible by", n.InVecSize)
+		}
+		comps := splitSeq(c, vec, n.InVecSize)
+		seq := anyseq.ConstSeqList(c, [][]anyvec.Vector{comps})
+		out := bd.Apply(seq).Output()
+		for i, out := range out {
+			if i > 0 {
+				fmt.Print(" ")
+			}
+			fmt.Print(VecStr(out.Packed.Data()))
+		}
+		fmt.Println()
 	}
 }

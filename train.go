@@ -90,8 +90,12 @@ func TrainCmd(args []string) {
 	} else {
 		tr := &anys2s.Trainer{
 			Func: func(s anyseq.Seq) anyseq.Seq {
-				b := net.Net.(anyrnn.Block)
-				return anyrnn.Map(s, b)
+				if net.RNN() {
+					b := net.Net.(anyrnn.Block)
+					return anyrnn.Map(s, b)
+				} else {
+					return net.Net.(*anyrnn.Bidir).Apply(s)
+				}
 			},
 			Cost:    trainingCostFunc(costFunc),
 			Params:  net.Net.(anynet.Parameterizer).Parameters(),
