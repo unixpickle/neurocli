@@ -1,0 +1,5 @@
+Input(w=1, h=1, d=16)
+
+FC(out=16)
+Tanh
+FC(out=1)
