@@ -15,6 +15,7 @@ import (
 	"github.com/unixpickle/anynet/anyff"
 	"github.com/unixpickle/anynet/anyrnn"
 	"github.com/unixpickle/anynet/anys2s"
+	"github.com/unixpickle/anynet/anys2v"
 	"github.com/unixpickle/anynet/anysgd"
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvec32"
@@ -71,41 +72,8 @@ func TrainCmd(args []string) {
 		essentials.Die("open samples:", err)
 	}
 
-	creator := anyvec32.CurrentCreator()
-
-	var lastCost *anyvec.Numeric
-	var gradienter anysgd.Gradienter
-	var fetcher anysgd.Fetcher
-	if net.FeedForward() {
-		tr := &anyff.Trainer{
-			Net:     net.Net.(anynet.Layer),
-			Cost:    trainingCostFunc(costFunc),
-			Params:  net.Net.(anynet.Parameterizer).Parameters(),
-			Average: true,
-		}
-		lastCost = &tr.LastCost
-		gradienter = tr
-		fetcher = &ffFetcher{vr: reader, cr: creator, inSize: net.InVecSize,
-			outSize: net.OutVecSize}
-	} else {
-		tr := &anys2s.Trainer{
-			Func: func(s anyseq.Seq) anyseq.Seq {
-				if net.RNN() {
-					b := net.Net.(anyrnn.Block)
-					return anyrnn.Map(s, b)
-				} else {
-					return net.Net.(*Bidir).Apply(s)
-				}
-			},
-			Cost:    trainingCostFunc(costFunc),
-			Params:  net.Net.(anynet.Parameterizer).Parameters(),
-			Average: true,
-		}
-		lastCost = &tr.LastCost
-		gradienter = tr
-		fetcher = &s2sFetcher{vr: reader, cr: creator, inSize: net.InVecSize,
-			outSize: net.OutVecSize}
-	}
+	lastCost, gradienter, fetcher := setupTrainer(net, trainingCostFunc(costFunc),
+		reader)
 
 	sgd := &anysgd.SGD{
 		Fetcher:     fetcher,
@@ -181,6 +149,57 @@ func trainingTransformer(adam string, momentum float64) anysgd.Transformer {
 	} else {
 		return nil
 	}
+}
+
+func setupTrainer(net *Network, c anynet.Cost, r *VecReader) (lastCost *anyvec.Numeric,
+	gradienter anysgd.Gradienter, fetcher anysgd.Fetcher) {
+	creator := anyvec32.CurrentCreator()
+	switch net.Net.(type) {
+	case anynet.Layer:
+		tr := &anyff.Trainer{
+			Net:     net.Net.(anynet.Layer),
+			Cost:    c,
+			Params:  net.Net.(anynet.Parameterizer).Parameters(),
+			Average: true,
+		}
+		lastCost = &tr.LastCost
+		gradienter = tr
+		fetcher = &ffFetcher{vr: r, cr: creator, inSize: net.InVecSize,
+			outSize: net.OutVecSize}
+	case anyrnn.Block, *Bidir:
+		tr := &anys2s.Trainer{
+			Func: func(s anyseq.Seq) anyseq.Seq {
+				if block, ok := net.Net.(anyrnn.Block); ok {
+					return anyrnn.Map(s, block)
+				} else {
+					return net.Net.(*Bidir).Apply(s)
+				}
+			},
+			Cost:    c,
+			Params:  net.Net.(anynet.Parameterizer).Parameters(),
+			Average: true,
+		}
+		lastCost = &tr.LastCost
+		gradienter = tr
+		fetcher = &s2sFetcher{vr: r, cr: creator, inSize: net.InVecSize,
+			outSize: net.OutVecSize}
+	case *Seq2Vec:
+		tr := &anys2v.Trainer{
+			Func: func(s anyseq.Seq) anydiff.Res {
+				return net.Net.(*Seq2Vec).Apply(s)
+			},
+			Cost:    c,
+			Params:  net.Net.(anynet.Parameterizer).Parameters(),
+			Average: true,
+		}
+		lastCost = &tr.LastCost
+		gradienter = tr
+		fetcher = &s2vFetcher{vr: r, cr: creator, inSize: net.InVecSize,
+			outSize: net.OutVecSize}
+	default:
+		essentials.Die("unknown network type")
+	}
+	return
 }
 
 type stopper struct {
@@ -279,6 +298,47 @@ func (s *s2sFetcher) splitSample(in, out []float64) ([]anyvec.Vector, []anyvec.V
 		return nil, nil, fmt.Errorf("sequence length mismatch")
 	}
 	return splitSeq(s.cr, in, s.inSize), splitSeq(s.cr, out, s.outSize), nil
+}
+
+type s2vFetcher struct {
+	vr      *VecReader
+	cr      anyvec.Creator
+	inSize  int
+	outSize int
+}
+
+func (s *s2vFetcher) Fetch(samples anysgd.SampleList) (batch anysgd.Batch, err error) {
+	defer essentials.AddCtxTo("fetch samples", &err)
+	ins, outs, err := s.vr.ReadSamples(samples.Len())
+	if err != nil && len(ins) == 0 {
+		return nil, err
+	}
+	var inSeqs [][]anyvec.Vector
+	var outVecs []anyvec.Vector
+	for i, joinedIn := range ins {
+		in, out, err := s.splitSample(joinedIn, outs[i])
+		if err != nil {
+			return nil, err
+		}
+		inSeqs = append(inSeqs, in)
+		outVecs = append(outVecs, out)
+	}
+	return &anys2v.Batch{
+		Inputs:  anyseq.ConstSeqList(s.cr, inSeqs),
+		Outputs: anydiff.NewConst(s.cr.Concat(outVecs...)),
+	}, nil
+}
+
+func (s *s2vFetcher) splitSample(in, out []float64) ([]anyvec.Vector, anyvec.Vector, error) {
+	if len(in) == 0 {
+		return nil, nil, fmt.Errorf("input must not be empty")
+	} else if len(in)%s.inSize != 0 {
+		return nil, nil, fmt.Errorf("input not divisible by %d", s.inSize)
+	} else if len(out) != s.outSize {
+		return nil, nil, fmt.Errorf("output size must be %d", s.outSize)
+	}
+	outVec := s.cr.MakeVectorData(s.cr.MakeNumericList(out))
+	return splitSeq(s.cr, in, s.inSize), outVec, nil
 }
 
 func splitSeq(c anyvec.Creator, seq []float64, chunkSize int) []anyvec.Vector {

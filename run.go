@@ -40,13 +40,16 @@ func RunCmd(args []string) {
 	}
 
 	c := anyvec32.CurrentCreator()
-	if net.FeedForward() {
+	switch net.Net.(type) {
+	case anynet.Layer:
 		runFeedForward(c, net, reader)
-	} else if net.RNN() {
+	case anyrnn.Block:
 		runRNN(c, net, reader, persistent)
-	} else if net.Bidir() {
+	case *Bidir:
 		runBidir(c, net, reader)
-	} else {
+	case *Seq2Vec:
+		runSeq2Vec(c, net, reader)
+	default:
 		essentials.Die("unknown network type")
 	}
 }
@@ -109,5 +112,18 @@ func runBidir(c anyvec.Creator, n *Network, r *VecReader) {
 			fmt.Print(VecStr(out.Packed.Data()))
 		}
 		fmt.Println()
+	}
+}
+
+func runSeq2Vec(c anyvec.Creator, n *Network, r *VecReader) {
+	s2v := n.Net.(*Seq2Vec)
+	for vec := range r.InputChan() {
+		if len(vec)%n.InVecSize != 0 {
+			essentials.Die("bad input: length must be divisible by", n.InVecSize)
+		}
+		comps := splitSeq(c, vec, n.InVecSize)
+		seq := anyseq.ConstSeqList(c, [][]anyvec.Vector{comps})
+		out := s2v.Apply(seq).Output()
+		fmt.Println(VecStr(out.Data()))
 	}
 }

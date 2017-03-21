@@ -44,11 +44,11 @@ func BidirCmd(args []string) {
 			essentials.Die("load "+names[i]+":", err)
 		}
 		if i < 2 {
-			if !(*ptr).RNN() {
+			if _, ok := (*ptr).Net.(anyrnn.Block); !ok {
 				essentials.Die("expected", names[i], "to be an RNN")
 			}
 		} else {
-			if !(*ptr).FeedForward() {
+			if _, ok := (*ptr).Net.(anynet.Layer); !ok {
 				essentials.Die("expected", names[i], "to be a feed-forward network.")
 			}
 		}
@@ -102,13 +102,7 @@ func (b *Bidir) Apply(in anyseq.Seq) anyseq.Seq {
 
 // Parameters returns all the parameters.
 func (b *Bidir) Parameters() []*anydiff.Var {
-	var res []*anydiff.Var
-	for _, obj := range []interface{}{b.In, b.Out} {
-		if p, ok := obj.(anynet.Parameterizer); ok {
-			res = append(res, p.Parameters()...)
-		}
-	}
-	return res
+	return anynet.AllParameters(b.In, b.Out)
 }
 
 // SerializerType returns the unique ID used to serialize

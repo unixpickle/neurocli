@@ -7,7 +7,8 @@ import (
 
 var (
 	Commands = []string{
-		"new", "train", "run", "signbit", "max", "read", "write", "bidir",
+		"new", "train", "run", "signbit", "max", "read", "write",
+		"bidir", "seq2vec",
 	}
 	CommandDescs = map[string]string{
 		"new":     "create a new network file",
@@ -18,6 +19,7 @@ var (
 		"read":    "read the parameters of a network",
 		"write":   "write the parameters of a network",
 		"bidir":   "create bidirectional RNN",
+		"seq2vec": "create sequence-to-vector model",
 	}
 	CommandFuncs = map[string]func([]string){
 		"new":     NewCmd,
@@ -28,6 +30,7 @@ var (
 		"read":    ReadCmd,
 		"write":   WriteCmd,
 		"bidir":   BidirCmd,
+		"seq2vec": Seq2VecCmd,
 	}
 )
 
