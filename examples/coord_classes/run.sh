@@ -9,13 +9,11 @@ neurocli train -net $OUT_FILE -samples $POINTS -adam default \
   -cost softmax -batch 10 -stopcost 0.01 -quiet
 
 echo 'Coloring in grid'
-for row in {0..20}
+for row in $(seq 0 0.05 1)
 do
-  scaledRow=$(echo "scale=2; $row/20" | bc)
-  for col in {0..40}
+  for col in $(seq 0 0.025 1)
   do
-    scaledCol=$(echo "scale=3; $col/40" | bc)
-    out=$(echo "$scaledCol $scaledRow" | neurocli run -net $OUT_FILE | neurocli max)
+    out=$(echo "$row $col" | neurocli run -net $OUT_FILE | neurocli max)
     echo -n $out
   done
   echo
