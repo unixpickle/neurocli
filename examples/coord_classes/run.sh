@@ -13,7 +13,7 @@ for row in $(seq 0 0.05 1)
 do
   for col in $(seq 0 0.025 1)
   do
-    out=$(echo "$row $col" | neurocli run -net $OUT_FILE | neurocli max)
+    out=$(echo "$col $row" | neurocli run -net $OUT_FILE | neurocli max)
     echo -n $out
   done
   echo
