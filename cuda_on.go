@@ -7,7 +7,7 @@ import (
 	"github.com/unixpickle/cudavec"
 )
 
-func init() {
+func enableCUDA() {
 	handle, err := cudavec.NewHandleDefault()
 	if err != nil {
 		panic(err)

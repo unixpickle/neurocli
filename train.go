@@ -40,6 +40,7 @@ func TrainCmd(args []string) {
 	var stopCost float64
 
 	var quiet bool
+	var cuda bool
 
 	flags := flag.NewFlagSet("train", flag.ExitOnError)
 	flags.StringVar(&netFile, "net", "", "neural network file")
@@ -55,11 +56,16 @@ func TrainCmd(args []string) {
 	flags.Float64Var(&stopCost, "stopcost", 0, "stop after cost goes below a `threshold`")
 	flags.IntVar(&stopSamples, "stopsamples", 0, "stop after `n` training samples")
 	flags.BoolVar(&quiet, "quiet", false, "quiet mode")
+	flags.BoolVar(&cuda, "cuda", false, "use CUDA")
 
 	flags.Parse(args)
 
 	if netFile == "" {
 		essentials.Die("Missing -net flag. See -help for more.")
+	}
+
+	if cuda {
+		enableCUDA()
 	}
 
 	var net *Network

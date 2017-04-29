@@ -20,16 +20,22 @@ func RunCmd(args []string) {
 	var inFile string
 	var persistent bool
 	var batch int
+	var cuda bool
 
 	flags := flag.NewFlagSet("run", flag.ExitOnError)
 	flags.StringVar(&netFile, "net", "", "input network file")
 	flags.StringVar(&inFile, "in", "", "input file (stdin used by default)")
 	flags.BoolVar(&persistent, "persistent", false, "persist RNN state until an empty line")
 	flags.IntVar(&batch, "batch", 1, "evaluation batch size")
+	flags.BoolVar(&cuda, "cuda", false, "use CUDA")
 	flags.Parse(args)
 
 	if netFile == "" {
 		essentials.Die("Missing -net flag. See -help for more.")
+	}
+
+	if cuda {
+		enableCUDA()
 	}
 
 	var net *Network
